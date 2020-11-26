@@ -97,6 +97,7 @@ view(counts(dds))
 
 # VST (Variance Stabilizing Transformation) transformation - for applications OTHER THAN differential testing
 vsd <- vst(dds, blind = TRUE)
+plotPCA(vsd, intgroup = "group")
 
 svg(file.path(savePath, "PCAplot_4Pts.svg"))
 DESeq2::plotPCA(vsd, intgroup = "group")
@@ -136,18 +137,29 @@ res_hciR <- res %>% data.frame() %>%
   as_tibble()
 rld <- rlog(dds)
 
-svg(file.path(savePath, "heatmap1500.svg"))
+
 x <- top_counts(res_hciR, rld, , top = 1500, sort_fc = FALSE, filter = TRUE)
 plot_genes(x, intgroup = "group", scale = "row", annotation_names_col = FALSE, show_rownames = FALSE)
-dev.off()
+ggsave(file.path(savePath, "heatmap1500.svg"))
 
-svg(file.path(savePath, "heatmap500.svg"))
+
 x <- top_counts(res_hciR, rld, , top = 500, sort_fc = TRUE, filter = TRUE)
 plot_genes(x, intgroup = "group", scale = "row", annotation_names_col = FALSE, show_rownames = FALSE)
-dev.off()
+ggsave(file.path(savePath, "heatmap500.svg"))
+
+
 
 sig_res <- res %>% 
   data.frame() %>% 
   rownames_to_column(var = "gene_name") %>%
   as_tibble() %>%
   filter(padj < p.adj.cutoff)
+
+clustering_sig_genes <- sig_res %>%
+  arrange(padj) %>%
+  head(n = 1500)
+
+cluster_vsd <- vsd_mat[clustering_sig_genes$gene_name,]
+clusters <- degPatterns(cluster_vsd, metadata = colData(vsd), time = "group", col = NULL)
+class(clusters)
+clusters$df
