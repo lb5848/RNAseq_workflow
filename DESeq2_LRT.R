@@ -13,6 +13,7 @@ library(Cairo)
 library(hciR)
 library(hciRdata)
 library(DEGreport)
+library(stats)
 
 # Set PrimaryDirectory where this script is located
 dirname(rstudioapi::getActiveDocumentContext()$path)  
@@ -129,37 +130,48 @@ boxplot(log10(assays(dds)[["cooks"]]), range = 0, las = 2)
 # abline(h=qf(.99, p, m - p))
 
 p.adj.cutoff <- 0.05
+log2FC.cutoff <- 1
 
 # filter only significant genes
+rld <- rlog(dds)
+
 res_hciR <- res %>% data.frame() %>% 
   rownames_to_column(var = "id") %>%
   filter(padj < p.adj.cutoff) %>%
   as_tibble()
-rld <- rlog(dds)
 
 
-x <- top_counts(res_hciR, rld, , top = 1500, sort_fc = FALSE, filter = TRUE)
+x <- top_counts(res_hciR, rld, top = 1500, sort_fc = FALSE, filter = TRUE)
 plot_genes(x, intgroup = "group", scale = "row", annotation_names_col = FALSE, show_rownames = FALSE)
 ggsave(file.path(savePath, "heatmap1500.svg"))
 
 
-x <- top_counts(res_hciR, rld, , top = 500, sort_fc = TRUE, filter = TRUE)
+x <- top_counts(res_hciR, rld, top = 500, sort_fc = TRUE, filter = TRUE)
 plot_genes(x, intgroup = "group", scale = "row", annotation_names_col = FALSE, show_rownames = FALSE)
 ggsave(file.path(savePath, "heatmap500.svg"))
 
+out <- plot_genes(x, intgroup = "group", scale = "row", annotation_names_col = FALSE, show_rownames = FALSE)
 
+out.clust <- cbind(x, cluster = sort(cutree(out$tree_row, k = 6)))
+out.clust <- as_tibble(out.clust)
+summary(out.clust)
 
-sig_res <- res %>% 
+out.rld <- rld[out.clust$id, ]
+out.rld <- assay(out.rld) %>% data.frame() %>% rownames_to_column(var = "id") %>% as_tibble()
+# try to plot different clusters!
+
+sig_res <- out.res %>% 
   data.frame() %>% 
   rownames_to_column(var = "gene_name") %>%
   as_tibble() %>%
   filter(padj < p.adj.cutoff)
 
 clustering_sig_genes <- sig_res %>%
-  arrange(padj) %>%
-  head(n = 1500)
+  arrange(padj)
+
 
 cluster_vsd <- vsd_mat[clustering_sig_genes$gene_name,]
-clusters <- degPatterns(cluster_vsd, metadata = colData(vsd), time = "group", col = NULL)
+clusters <- degPatterns(cluster_vsd, metadata = colData(vsd), time = "group", col = NULL, consensusCluster = TRUE)
 class(clusters)
 clusters$df
+
