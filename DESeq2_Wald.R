@@ -28,8 +28,8 @@ dirPath <- file.path(PrimaryDirectory, workingDir)
 dir.create(dirPath)
 setwd(dirPath)
 
-savePath <- file.path(dirPath, "results")
-saveDir <- file.path(dirPath, "results")
+savePath <- file.path(dirPath, "results_wald")
+saveDir <- file.path(dirPath, "results_wald")
 dir.create(savePath)
 
 # load counts and coldata
@@ -81,14 +81,9 @@ all(colnames(rowname_cts) == rownames(col.data))
 # setting data for DESeq2
 
 dds <- DESeqDataSetFromMatrix(countData = rowname_cts, colData = col.data, 
-                              design = ~ID + Condition + Region)
+                              design = ~ID + Region + Condition + Region:Condition)
 
 # multifactorial design
-
-# group includes BM vs PB and Hyp vs Norm, BM_Norm as a reference
-dds$group <- factor(paste0(dds$Region, "_", dds$Condition))
-levels(dds$group) <- c("BM_Norm", "BM_Hyp", "PBL_Norm", "PBL_Hyp")
-design(dds) <- formula(~ ID + group)
 
 # pre-filtering the dataset
 nrow(dds)
@@ -98,61 +93,53 @@ view(counts(dds))
 
 # VST (Variance Stabilizing Transformation) transformation - for applications OTHER THAN differential testing
 vsd <- vst(dds, blind = TRUE)
-plotPCA(vsd, intgroup = "group")
+plotPCA(vsd, intgroup = "Condition")
+plotPCA(vsd, intgroup = "Region")
+plotPCA(vsd, intgroup = c("Region","Condition"))
 
 svg(file.path(savePath, "PCAplot_4Pts.svg"))
-DESeq2::plotPCA(vsd, intgroup = "group")
+DESeq2::plotPCA(vsd, intgroup = c("Region","Condition"))
 dev.off()
 png(file.path(savePath, "PCAplot_4Pts.png"))
-DESeq2::plotPCA(vsd, intgroup = "group")
+DESeq2::plotPCA(vsd, intgroup = c("Region","Condition"))
 dev.off()
 
 # hierarchical clustering
 vsd_mat <- assay(vsd)
 vsd_cor <- cor(vsd_mat)
 pheatmap(vsd_cor)
-plot_dist(vsd, intgroup = "group")
+plot_dist(vsd, intgroup = c("Region","Condition"))
 
-dds <- DESeq(dds, test = "LRT", reduced = ~ID)
-res <- results(dds)
-summary(res)
-
-boxplot(log10(assays(dds)[["cooks"]]), range = 0, las = 2)
-
-# W <- res$stat
-# maxCooks <- apply(assays(dds)[["cooks"]],1,max)
-# idx <- !is.na(W)
-# plot(rank(W[idx]), maxCooks[idx], xlab="rank of Wald statistic", 
-#      ylab="maximum Cook's distance per gene",
-#      ylim=c(0,5), cex=.4, col=rgb(0,0,0,.3))
-# m <- ncol(dds)
-# p <- 3
-# abline(h=qf(.99, p, m - p))
-
+dds <- DESeq(dds, test = "Wald")
 p.adj.cutoff <- 0.05
-log2FC.cutoff <- 1
-
-# filter only significant genes
-rld <- rlog(dds)
-
-res_hciR <- res %>% data.frame() %>% 
+resBM_PB <- results(dds, contrast = c("Region", "PBL", "BM"))
+res_hciR <- resBM_PB %>% data.frame() %>% 
   rownames_to_column(var = "id") %>%
   filter(padj < p.adj.cutoff) %>%
   as_tibble()
 
 
-x <- top_counts(res_hciR, rld, top = 1500, sort_fc = FALSE, filter = TRUE)
-plot_genes(x, intgroup = "group", scale = "row", annotation_names_col = FALSE, show_rownames = FALSE)
-ggsave(file.path(savePath, "heatmap1500.svg"))
+x <- top_counts(res_hciR, vsd, top = 1500, sort_fc = TRUE, filter = TRUE)
+plot_genes(x, intgroup = "Region", scale = "row", annotation_names_col = FALSE, show_rownames = FALSE)
+
+resHyp_Norm <- results(dds, contrast = c("Condition", "Norm", "Hyp"))
+res_hciR <- resHyp_Norm %>% data.frame() %>% 
+  rownames_to_column(var = "id") %>%
+  filter(padj < p.adj.cutoff) %>%
+  as_tibble()
 
 
-x <- top_counts(res_hciR, rld, top = 500, sort_fc = TRUE, filter = TRUE)
-plot_genes(x, intgroup = "group", scale = "row", annotation_names_col = FALSE, show_rownames = FALSE)
-ggsave(file.path(savePath, "heatmap500.svg"))
+x <- top_counts(res_hciR, vsd, top = 100, sort_fc = TRUE, filter = TRUE)
+plot_genes(x, intgroup = "Condition", scale = "row", annotation_names_col = FALSE, show_rownames = FALSE)
 
-out <- plot_genes(x, intgroup = "group", scale = "row", annotation_names_col = FALSE, show_rownames = FALSE)
+res2 <- results(dds, contrast = list( c("Condition_Norm_vs_Hyp", "RegionPBL.ConditionNorm") ))
+res_hciR <- res2 %>% data.frame() %>% 
+  rownames_to_column(var = "id") %>%
+  filter(padj < p.adj.cutoff) %>%
+  as_tibble()
 
-out.clust <- cbind(x, cluster = sort(cutree(out$tree_row, k = 6)))
-out.clust <- as_tibble(out.clust)
-summary(out.clust)
+
+x <- top_counts(res_hciR, vsd, top = 100, sort_fc = TRUE, filter = TRUE)
+plot_genes(x, intgroup = "Region", scale = "row", annotation_names_col = FALSE, show_rownames = FALSE)
+
 
