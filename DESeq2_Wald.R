@@ -2,18 +2,17 @@ rm(list = ls())
 
 library(DESeq2)
 library(tidyverse)
-
 library(vsn)
 library(pheatmap)
 library(RColorBrewer)
 library(apeglm)
 library(svglite)
 library(Cairo)
-
 library(hciR)
 library(hciRdata)
 library(DEGreport)
 library(stats)
+library(limma)
 
 # Set PrimaryDirectory where this script is located
 dirname(rstudioapi::getActiveDocumentContext()$path)  
