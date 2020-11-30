@@ -15,6 +15,7 @@ library(DEGreport)
 library(stats)
 library(limma)
 library(data.table)
+library(ggplotify)
 
 
 
@@ -114,7 +115,7 @@ plot_pca(vsdLRT, intgroup = "group")
 
 DESeq2::plotPCA(vsdLRT, intgroup = "group")
 ggsave(file.path(savePath, "PCA_4pts_activated.svg"), plot = last_plot())
-
+ggsave(file.path(savePath, "PCA_4pts_activated.png"), plot = last_plot())
 
 # run DESeq2, test = LRT, reduced = ~ ID
 ddsLRT <- DESeq(ddsLRT, test = "LRT", reduced = ~ ID)
@@ -122,9 +123,9 @@ ddsLRT <- DESeq(ddsLRT, test = "LRT", reduced = ~ ID)
 plotDispEsts(ddsLRT)
 plot_dist(vsdLRT, intgroup = "group")
 
-resLRT <- results(ddsLRT)
-p.adj.cutoff <- 0.05
-log2FC.cutoff <- 1
+resLRT <- results(ddsLRT, name = resultsNames(ddsLRT)[7])
+p.adj.cutoff <- 0.01
+log2FC.cutoff <- 2
 
 sig_resLRT <- resLRT %>% data.frame() %>% 
   rownames_to_column(var = "id") %>%
@@ -132,20 +133,29 @@ sig_resLRT <- resLRT %>% data.frame() %>%
   filter(padj < p.adj.cutoff) %>%
   filter(abs(log2FoldChange) > log2FC.cutoff)
 
-plot_volcano(resLRT)
+plot_volcano(sig_resLRT)
 
 sig_resLRT <- sig_resLRT %>% arrange(padj)
-cluster_vsd <- vsdLRT_mat[ sig_resLRT$gene, ]
-clusters <- degPatterns(cluster_vsd, metadata = colData(vsdLRT), time = "group")
+cluster_vsd <- vsdLRT_mat[ sig_resLRT$id, ]
+meta <- colData(vsdLRT)
+meta$Time <- rep("D3", 16)
+clusters <- degPatterns(cluster_vsd, metadata = meta, time = "group", minc = 15)
 
-rldLRT <- rlog(ddsLRT)
-sig_resLRThciR <- sig_resLRT %>% data.frame() %>% column_to_rownames( var = "gene" ) %>%
+# rldLRT <- rlog(ddsLRT)
+sig_resLRThciR <- sig_resLRT %>% data.frame() %>% column_to_rownames( var = "id" ) %>%
   rownames_to_column(var = "id") %>%
   as_tibble()
 
-x <- top_counts(sig_resLRThciR, vsdLRT, top = 500, filter = TRUE, sort_fc = FALSE)
-plot_genes(x, intgroup = "group", scale = "row", show_rownames = FALSE, annotation_names_col = FALSE)
-ggsave(file.path(savePath, "heatmap500genes.svg"), plot = last_plot())
+x <- top_counts(sig_resLRThciR, vsdLRT, top = 1000, filter = TRUE, sort_fc = TRUE)
+
+plot_genes(x, intgroup = "group", scale = "row", show_rownames = FALSE, annotation_names_col = FALSE, 
+           show_colnames = TRUE)
+
+plot <- plot_genes(x, intgroup = "group", scale = "row", show_rownames = FALSE, 
+                   annotation_names_col = FALSE, show_colnames = FALSE, output = "pheatmap")
+plot <- as.ggplot(plot, scale = 1, hjust = 0, vjust = 0)
+ggsave(file.path(savePath, "heatmap1000genes.svg"), plot = plot)
+ggsave(file.path(savePath, "heatmap1000genes.png"), plot = plot)
 
 # DESeq2 w/ Wald test
 
@@ -174,10 +184,40 @@ resultsNames(dds)
 res <- results_all(dds, vs = "all", trt = "group")
 plot_volcano(res[[1]])
 res_sig <- res %>% lapply(function(x) {
-  x <- x %>% as_tibble() %>% filter(padj < 0.05) %>% filter(abs(log2FoldChange) >1)})
-
+  x <- x %>% as_tibble() %>% filter(padj < p.adj.cutoff) %>% filter(abs(log2FoldChange) > log2FC.cutoff)})
+plot_volcano(res_sig[[6]])
+res_sig
 # save csv files - significant genes only - all contrasts
 lapply(1:length(res_sig), function(i){
   res_sig[[i]] %>% as_tibble() %>% arrange(padj) %>% fwrite(file.path(savePath, paste0(names(res_sig[i]), ".csv")))
 })
 
+names(res_sig)
+res_sighciR <- res_sig %>% lapply(function(x){
+  x <- x %>% data.frame() %>% column_to_rownames(var = "id") %>% rownames_to_column(var = "id") %>% as_tibble()
+})
+
+names(res_sighciR)
+# BM_Norm vs PBL_Norm
+x <- top_counts(res_sighciR[[1]], vsd, top = 1000, filter = TRUE, sort_fc = TRUE)
+
+plot_genes(x, intgroup = "group", scale = "row", show_rownames = FALSE, annotation_names_col = FALSE, 
+           show_colnames = TRUE)
+
+#BM_Norm vs BM_Hyp
+x <- top_counts(res_sighciR[[2]], vsd, top = 150, filter = TRUE, sort_fc = TRUE)
+
+plot_genes(x, intgroup = "group", scale = "row", show_rownames = FALSE, annotation_names_col = FALSE, 
+           show_colnames = FALSE)
+
+# PBL_Norm vs BM_Hyp
+x <- top_counts(res_sighciR[[4]], vsd, top = 2800, filter = TRUE, sort_fc = FALSE)
+
+plot_genes(x, intgroup = "group", scale = "row", show_rownames = FALSE, annotation_names_col = FALSE, 
+           show_colnames = TRUE)
+
+# BM_Hyp vs PBL_Hyp
+x <- top_counts(res_sighciR[[6]], vsd, top = 40, filter = TRUE, sort_fc = TRUE)
+
+plot_genes(x, intgroup = "group", scale = "row", show_rownames = TRUE, annotation_names_col = FALSE, 
+           show_colnames = TRUE)
