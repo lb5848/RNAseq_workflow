@@ -150,12 +150,22 @@ x <- top_counts(sig_resLRThciR, vsdLRT, top = 1000, filter = TRUE, sort_fc = TRU
 
 plot_genes(x, intgroup = "group", scale = "row", show_rownames = FALSE, annotation_names_col = FALSE, 
            show_colnames = TRUE)
-
+out <- plot_genes(x, intgroup = "group", scale = "row", show_rownames = FALSE, 
+                  annotation_names_col = FALSE, show_colnames = FALSE, output = "pheatmap")
 plot <- plot_genes(x, intgroup = "group", scale = "row", show_rownames = FALSE, 
                    annotation_names_col = FALSE, show_colnames = FALSE, output = "pheatmap")
 plot <- as.ggplot(plot, scale = 1, hjust = 0, vjust = 0)
 ggsave(file.path(savePath, "heatmap1000genes.svg"), plot = plot)
 ggsave(file.path(savePath, "heatmap1000genes.png"), plot = plot)
+
+out.clust <- cbind(x, cluster = sort(cutree(out$tree_row, k = 6)))
+out.clust <- as_tibble(out.clust)
+out.clust.2 <- out.clust %>% filter(out.clust$cluster == 6) %>% select(-cluster)
+plot.clust <- x %>% filter(id %in% out.clust.2$id)
+plot_genes(plot.clust, intgroup = "group", scale = "row", show_rownames = TRUE, 
+           annotation_names_col = FALSE, show_colnames = FALSE, output = "pheatmap")
+# cluster 1 - BM specific genes
+
 
 # DESeq2 w/ Wald test
 
