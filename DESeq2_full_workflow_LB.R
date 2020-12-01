@@ -164,7 +164,6 @@ out.clust.2 <- out.clust %>% filter(out.clust$cluster == 6) %>% select(-cluster)
 plot.clust <- x %>% filter(id %in% out.clust.2$id)
 plot_genes(plot.clust, intgroup = "group", scale = "row", show_rownames = TRUE, 
            annotation_names_col = FALSE, show_colnames = FALSE, output = "pheatmap")
-# cluster 1 - BM specific genes
 
 
 # DESeq2 w/ Wald test
@@ -216,8 +215,10 @@ plot_genes(x, intgroup = "group", scale = "row", show_rownames = FALSE, annotati
 
 #BM_Norm vs BM_Hyp
 x <- top_counts(res_sighciR[[2]], vsd, top = 150, filter = TRUE, sort_fc = TRUE)
-
+noMS <- x %>% select(-grep("MS", colnames(x)))
 plot_genes(x, intgroup = "group", scale = "row", show_rownames = FALSE, annotation_names_col = FALSE, 
+           show_colnames = FALSE)
+plot_genes(noMS, intgroup = "group", scale = "row", show_rownames = FALSE, annotation_names_col = FALSE, 
            show_colnames = FALSE)
 
 # PBL_Norm vs BM_Hyp
