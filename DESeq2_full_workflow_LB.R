@@ -123,7 +123,7 @@ ddsLRT <- DESeq(ddsLRT, test = "LRT", reduced = ~ ID)
 plotDispEsts(ddsLRT)
 plot_dist(vsdLRT, intgroup = "group")
 
-resLRT <- results(ddsLRT, name = resultsNames(ddsLRT)[7])
+resLRT <- results(ddsLRT, name = resultsNames(ddsLRT)[6])
 p.adj.cutoff <- 0.01
 log2FC.cutoff <- 2
 
@@ -139,30 +139,36 @@ sig_resLRT <- sig_resLRT %>% arrange(padj)
 cluster_vsd <- vsdLRT_mat[ sig_resLRT$id, ]
 meta <- colData(vsdLRT)
 meta$Time <- rep("D3", 16)
-clusters <- degPatterns(cluster_vsd, metadata = meta, time = "group", minc = 15)
+clusters <- degPatterns(cluster_vsd, metadata = meta, time = "group", minc = 20)
+ggsave(file.path(savePath, "degPatternsBMHvsN.svg"))
+ggsave(file.path(savePath, "degPatternsBMHvsN.png"))
 
 # rldLRT <- rlog(ddsLRT)
 sig_resLRThciR <- sig_resLRT %>% data.frame() %>% column_to_rownames( var = "id" ) %>%
   rownames_to_column(var = "id") %>%
   as_tibble()
 
-x <- top_counts(sig_resLRThciR, vsdLRT, top = 1000, filter = TRUE, sort_fc = TRUE)
+x <- top_counts(sig_resLRThciR, vsdLRT, top = 400, filter = TRUE, sort_fc = TRUE)
 
-plot_genes(x, intgroup = "group", scale = "row", show_rownames = FALSE, annotation_names_col = FALSE, 
+plot_genes(x, intgroup = "group", scale = "diff", show_rownames = FALSE, annotation_names_col = FALSE, 
            show_colnames = TRUE)
-out <- plot_genes(x, intgroup = "group", scale = "row", show_rownames = FALSE, 
+out <- plot_genes(x, intgroup = "group", scale = "diff", show_rownames = FALSE, 
                   annotation_names_col = FALSE, show_colnames = FALSE, output = "pheatmap")
-plot <- plot_genes(x, intgroup = "group", scale = "row", show_rownames = FALSE, 
+plot <- plot_genes(x, intgroup = "group", scale = "diff", show_rownames = FALSE, 
                    annotation_names_col = FALSE, show_colnames = FALSE, output = "pheatmap")
 plot <- as.ggplot(plot, scale = 1, hjust = 0, vjust = 0)
-ggsave(file.path(savePath, "heatmap1000genes.svg"), plot = plot)
-ggsave(file.path(savePath, "heatmap1000genes.png"), plot = plot)
+ggsave(file.path(savePath, "heatmap400genesBMHvsN.svg"), plot = plot)
+ggsave(file.path(savePath, "heatmap400genesBMHvsN.png"), plot = plot)
 
-out.clust <- cbind(x, cluster = sort(cutree(out$tree_row, k = 6)))
+plot(out$tree_row)
+out.clust <- cbind(x, cluster = sort(cutree(out$tree_row, h = 11)))
+max(out.clust$cluster)
 out.clust <- as_tibble(out.clust)
-out.clust.2 <- out.clust %>% filter(out.clust$cluster == 6) %>% select(-cluster)
+head(out.clust %>% filter(cluster == 4))
+out.clust.2 <- out.clust %>% filter(out.clust$cluster == 4) %>% select(-cluster)
+head(out.clust.2)
 plot.clust <- x %>% filter(id %in% out.clust.2$id)
-plot_genes(plot.clust, intgroup = "group", scale = "row", show_rownames = TRUE, 
+plot_genes(plot.clust, intgroup = "group", scale = "diff", show_rownames = TRUE, 
            annotation_names_col = FALSE, show_colnames = FALSE, output = "pheatmap")
 
 # try remove MS
