@@ -165,6 +165,18 @@ plot.clust <- x %>% filter(id %in% out.clust.2$id)
 plot_genes(plot.clust, intgroup = "group", scale = "row", show_rownames = TRUE, 
            annotation_names_col = FALSE, show_colnames = FALSE, output = "pheatmap")
 
+# try remove MS
+
+noMS <- x %>% select(-grep("MS", colnames(x)))
+plot_genes(noMS, intgroup = "group", scale = "row", show_rownames = FALSE, annotation_names_col = FALSE, 
+           show_colnames = TRUE)
+
+out.clust <- cbind(noMS, cluster = sort(cutree(out$tree_row, k = 3)))
+out.clust <- as_tibble(out.clust)
+out.clust.2 <- out.clust %>% filter(out.clust$cluster == 2) %>% select(-cluster)
+plot.clust <- noMS %>% filter(id %in% out.clust.2$id)
+plot_genes(plot.clust, intgroup = "group", scale = "row", show_rownames = TRUE, 
+           annotation_names_col = FALSE, show_colnames = FALSE, output = "pheatmap")
 
 # DESeq2 w/ Wald test
 
@@ -212,6 +224,15 @@ x <- top_counts(res_sighciR[[1]], vsd, top = 1000, filter = TRUE, sort_fc = TRUE
 
 plot_genes(x, intgroup = "group", scale = "row", show_rownames = FALSE, annotation_names_col = FALSE, 
            show_colnames = TRUE)
+out <- plot_genes(x, intgroup = "group", scale = "row", show_rownames = FALSE, annotation_names_col = FALSE, 
+                  show_colnames = TRUE)
+
+out.clust <- cbind(x, cluster = sort(cutree(out$tree_row, k = 2)))
+out.clust <- as_tibble(out.clust)
+out.clust.2 <- out.clust %>% filter(out.clust$cluster == 2) %>% select(-cluster)
+plot.clust <- x %>% filter(id %in% out.clust.2$id)
+plot_genes(plot.clust, intgroup = "group", scale = "row", show_rownames = FALSE, 
+           annotation_names_col = FALSE, show_colnames = FALSE, output = "pheatmap")
 
 #BM_Norm vs BM_Hyp
 x <- top_counts(res_sighciR[[2]], vsd, top = 150, filter = TRUE, sort_fc = TRUE)
@@ -220,12 +241,23 @@ plot_genes(x, intgroup = "group", scale = "row", show_rownames = FALSE, annotati
            show_colnames = FALSE)
 plot_genes(noMS, intgroup = "group", scale = "row", show_rownames = FALSE, annotation_names_col = FALSE, 
            show_colnames = FALSE)
+out <- plot_genes(noMS, intgroup = "group", scale = "row", show_rownames = FALSE, annotation_names_col = FALSE, 
+           show_colnames = FALSE)
+out.clust <- cbind(noMS, cluster = sort(cutree(out$tree_row, k = 6)))
+out.clust <- as_tibble(out.clust)
+out.clust.2 <- out.clust %>% filter(out.clust$cluster == 1) %>% select(-cluster)
+plot.clust <- noMS %>% filter(id %in% out.clust.2$id)
+plot_genes(plot.clust, intgroup = "group", scale = "row", show_rownames = TRUE, 
+           annotation_names_col = FALSE, show_colnames = FALSE, output = "pheatmap")
 
 # PBL_Norm vs BM_Hyp
 x <- top_counts(res_sighciR[[4]], vsd, top = 2800, filter = TRUE, sort_fc = FALSE)
 
+noMS <- x %>% select(-grep("MS", colnames(x)))
 plot_genes(x, intgroup = "group", scale = "row", show_rownames = FALSE, annotation_names_col = FALSE, 
-           show_colnames = TRUE)
+           show_colnames = FALSE)
+plot_genes(noMS, intgroup = "group", scale = "row", show_rownames = FALSE, annotation_names_col = FALSE, 
+           show_colnames = FALSE)
 
 # BM_Hyp vs PBL_Hyp
 x <- top_counts(res_sighciR[[6]], vsd, top = 40, filter = TRUE, sort_fc = TRUE)
